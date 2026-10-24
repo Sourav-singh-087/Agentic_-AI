@@ -1,19 +1,12 @@
 from langgraph.graph import StateGraph , START,END
-from langchain_huggingface import ChatHuggingFace , HuggingFaceEmbeddings  , HuggingFaceEndpoint
+from langchain_ollama import ChatOllama
 from langsmith import evaluate          # <-- added
 
 from dotenv import load_dotenv
 from typing import TypedDict
 
 load_dotenv()
-llm = HuggingFaceEndpoint(
-    repo_id="meta-llama/Llama-3.1-8B-Instruct",
-    task="conversational",
-    max_new_tokens=256,
-    temperature=0.7,
-    timeout=60
-)
-model = ChatHuggingFace(llm = llm)
+model = ChatOllama(model="qwen2.5:3b", temperature=0.7, num_predict=256)
 
 class BlogState(TypedDict):
     content : str

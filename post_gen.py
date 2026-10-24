@@ -1,38 +1,24 @@
 from langgraph.graph import StateGraph , START,END
-from langchain_huggingface import ChatHuggingFace , HuggingFaceEmbeddings  , HuggingFaceEndpoint
+from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 
 
 from dotenv import load_dotenv
-from typing import TypedDict,Literal
+import operator
+from typing import TypedDict,Literal,Annotated
 
 #Qwen/Qwen3-8B
 #deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
 #Qwen/Qwen3-14B
 
-generator_llm = HuggingFaceEndpoint(
-    repo_id="Qwen/Qwen3-8B",
-    task="text-generation",
-    max_new_tokens=256,
-    temperature=0.7
-)
-generator = ChatHuggingFace(llm=generator_llm)
+generator_llm = ChatOllama(model="qwen2.5:3b", temperature=0.7, num_predict=256)
+generator = generator_llm
 
-evaluator_llm = HuggingFaceEndpoint(
-    repo_id="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-    task="text-generation",
-    max_new_tokens=256,
-    temperature=0.1
-)
-evaluator = ChatHuggingFace(llm=evaluator_llm)
+evaluator_llm = ChatOllama(model="qwen2.5:3b", temperature=0.1, num_predict=256)
+evaluator = evaluator_llm
 
-optimizer_llm = HuggingFaceEndpoint(
-    repo_id="Qwen/Qwen3-14B",
-    task="text-generation",
-    max_new_tokens=256,
-    temperature=0.4
-)
-optimizer = ChatHuggingFace(llm=optimizer_llm)
+optimizer_llm = ChatOllama(model="qwen2.5:3b", temperature=0.4, num_predict=256)
+optimizer = optimizer_llm
 
 from pydantic import BaseModel, Field
 
@@ -46,10 +32,12 @@ structured_evaluator_llm = evaluator.with_structured_output(TweetEvaluation)
 class TweetState(TypedDict):
     topic : str
     tweet : str
-    evaluation : Literal["approved" , "need_imporvement"]
+    evaluation : Literal["approved" , "needs_improvement"]
     feedback : str
     iteration : int
     max_iteration : int
+    tweet_history : Annotated[list[str], operator.add]
+    feedback_history : Annotated[list[str], operator.add]
 
 def generate_tweet(state: TweetState):
 
@@ -128,10 +116,10 @@ Re-write it as a short, viral-worthy tweet. Avoid Q&A style and stay under 280 c
     return {'tweet': response, 'iteration': iteration, 'tweet_history': [response]}
 
 def route_evaluation(state : TweetState):
-    if state["evaluation"] == 'approved' or state["itreation"] >= state["max_itreation"] :
+    if state["evaluation"] == 'approved' or state["iteration"] >= state["max_iteration"] :
         return 'approved'
     else :
-        return 'needs_imporvement' 
+        return 'needs_improvement'
 
 graph = StateGraph(TweetState)
 
@@ -142,7 +130,7 @@ graph.add_node("optimize_tweet",optimize_tweet)
 graph.add_edge(START, "generate_tweet")
 graph.add_edge('generate_tweet','evaluate_tweet')
 
-graph.add_conditional_edges('evaluate',route_evaluation ,{'approved' : END , 'needs_improvement' : 'optimize'})
+graph.add_conditional_edges('evaluate_tweet',route_evaluation ,{'approved' : END , 'needs_improvement' : 'optimize_tweet'})
 graph.add_edge('optimize_tweet','evaluate_tweet')
 
 workflow = graph.compile()

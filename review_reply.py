@@ -1,5 +1,5 @@
 from langgraph.graph import StateGraph , START,END
-from langchain_huggingface import ChatHuggingFace , HuggingFaceEmbeddings  , HuggingFaceEndpoint
+from langchain_ollama import ChatOllama
 
 
 from dotenv import load_dotenv
@@ -8,13 +8,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
-llm = HuggingFaceEndpoint(
-    repo_id="meta-llama/Llama-3.1-8B-Instruct",
-    task="conversational",
-    max_new_tokens=256,
-    temperature=0.7
-)
-model = ChatHuggingFace(llm = llm)
+model = ChatOllama(model="qwen2.5:3b", temperature=0.7, num_predict=256)
 
 class sentimentsechma (BaseModel):
     sentiment : Literal["positive" , "negative"] = Field(description='sentimant of the review')
@@ -35,7 +29,9 @@ Review:
 """)
 
 
-chain = prompt | model
+structured_model = model.with_structured_output(sentimentsechma)
+
+chain = prompt | structured_model
 
 result = chain.invoke({
     "text": "The product is too bad"
@@ -48,11 +44,16 @@ class reviewstate(TypedDict):
     response : str
 
 def find_sentimant(state : reviewstate):
-    prompt = f''
-    sentiment = chain.invoke(prompt).sentiment
+    sentiment = chain.invoke({"text": state["review"]}).sentiment
+    return {"sentiment": sentiment}
 
 graph = StateGraph(reviewstate)
 
 graph.add_node('find_sentimant',find_sentimant)
+graph.add_edge(START, 'find_sentimant')
+graph.add_edge('find_sentimant', END)
 
-print(result.content)
+workflow = graph.compile()
+
+print(result.sentiment)
+print(workflow.invoke({'review': 'The delivery was fast and the quality is amazing'}))

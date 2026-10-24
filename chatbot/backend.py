@@ -1,5 +1,5 @@
 from langgraph.graph import StateGraph, START, END
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_ollama import ChatOllama
 from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.graph.message import add_messages
 from dotenv import load_dotenv
@@ -9,13 +9,7 @@ import sqlite3
 
 load_dotenv()
 
-llm = HuggingFaceEndpoint(
-    repo_id="Qwen/Qwen3-8B",
-    task="text-generation",
-    max_new_tokens=2048,
-    temperature=0.7,
-)
-model = ChatHuggingFace(llm=llm)
+model = ChatOllama(model="qwen2.5:3b", temperature=0.7, num_predict=2048)
 
 
 class ChatState(TypedDict):

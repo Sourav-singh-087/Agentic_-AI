@@ -1,5 +1,5 @@
 from langgraph.graph import StateGraph , START,END
-from langchain_huggingface import ChatHuggingFace , HuggingFaceEmbeddings  , HuggingFaceEndpoint
+from langchain_ollama import ChatOllama
 from pydantic import BaseModel,Field
 
 from dotenv import load_dotenv
@@ -7,13 +7,7 @@ from typing import TypedDict,Annotated
 import operator
 
 load_dotenv()
-llm = HuggingFaceEndpoint(
-    repo_id="Qwen/Qwen3-8B",
-    task="text-generation",
-    max_new_tokens=256,
-    temperature=0.7
-)
-model = ChatHuggingFace(llm = llm)
+model = ChatOllama(model="qwen2.5:3b", temperature=0.7, num_predict=256)
 
 class evalutionsechma(BaseModel):
     feedback : str = Field(description='detailed feedback for the essay')
